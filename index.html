@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>斗六家商高二英文 - 互動測驗與生字筆記本</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --bg-color: #f0f2f5;
+            --text-color: #333;
+            --notebook-bg: #fff;
+            --notebook-width: 300px;
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            display: flex;
+            height: 100vh;
+            color: var(--text-color);
+            overflow: hidden; /* 防止雙滾軸，確保只有 #main-content 滾動 */
+        }
+
+        /* --- 左側導航面板 --- */
+        #sidebar {
+            width: 250px;
+            background-color: white;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .nav-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .nav-btn {
+            background: #eee;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 0;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            color: #666;
+        }
+
+        .nav-btn:hover { background-color: var(--secondary-color); color: white; }
+        .nav-btn.correct { background-color: var(--success-color); color: white; }
+        .nav-btn.wrong { background-color: var(--accent-color); color: white; }
+
+        /* --- 右側主要內容區 (唯一滾動區) --- */
+        #main-content {
+            flex-grow: 1;
+            padding: 0;
+            overflow-y: auto; /* <--- 滾動設定在這裡 */
+            position: relative;
+            scroll-behavior: smooth;
+        }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            padding: 15px 30px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            /* 約 50px-60px 高度，JS中將使用 80px 作為偏移量，以確保安全距離 */
+        }
+
+        .score-display {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            background: #e8f4fd;
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+
+        .content-wrapper {
+            padding: 30px 30px 100px 30px; 
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 40px 0 20px 0;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* --- 題目卡片設計 --- */
+        .question-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-left: 6px solid #e0e0e0;
+            transition: transform 0.2s;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .options-group { display: flex; flex-direction: column; gap: 12px; }
+        
+        .option-label {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-label:hover:not(.disabled) { border-color: var(--secondary-color); background-color: #fbfbfb; }
+        .option-label.selected-correct { border-color: var(--success-color); background-color: #eafaf1; color: var(--success-color); font-weight: bold; }
+        .option-label.selected-wrong { border-color: var(--accent-color); background-color: #fdeded; color: var(--accent-color); }
+        .option-label.disabled { cursor: default; opacity: 0.7; }
+        .option-label input { margin-right: 15px; transform: scale(1.2); }
+
+        /* --- 詳解區域 --- */
+        .explanation-box {
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+            display: none;
+            border: 1px solid #e9ecef;
+        }
+        .explanation-header { padding: 10px 20px; font-weight: bold; display: flex; align-items: center; }
+        .explanation-header.correct { background-color: #d4edda; color: #155724; }
+        .explanation-header.wrong { background-color: #f8d7da; color: #721c24; }
+        .explanation-content { padding: 20px; }
+        .passage-content { 
+            background-color: #fff8e1; 
+            padding: 20px; 
+            border-radius: 6px; 
+            border-left: 4px solid #ffc107; 
+            margin-bottom: 20px; 
+            line-height: 1.7; 
+            font-size: 0.95rem; 
+            white-space: pre-wrap;
+        }
+
+        /* ========================================= */
+        /* === 生字筆記本功能樣式 (Vocabulary Notebook) === */
+        /* ========================================= */
+
+        #vocab-fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background-color: var(--secondary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 1000;
+            transition: transform 0.3s, background-color 0.3s;
+        }
+
+        #vocab-fab:hover {
+            transform: scale(1.1);
+            background-color: #2980b9;
+        }
+
+        #vocab-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: var(--accent-color);
+            color: white;
+            font-size: 12px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        #vocab-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: var(--notebook-width);
+            height: 100vh;
+            background-color: var(--notebook-bg);
+            box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+            z-index: 1001;
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #vocab-panel.open {
+            transform: translateX(0);
+        }
+
+        .vocab-header {
+            padding: 20px;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .vocab-header h3 { margin: 0; font-size: 1.1rem; }
+        
+        #close-vocab-btn {
+            background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;
+        }
+
+        .vocab-list-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .vocab-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+        }
+        
+        .vocab-item:hover { background-color: #f9f9f9; }
+        .vocab-word { font-weight: 500; color: #333; }
+        
+        .delete-btn {
+            background: none; border: none; color: #999; cursor: pointer; padding: 5px;
+        }
+        .delete-btn:hover { color: var(--accent-color); }
+
+        .vocab-footer {
+            padding: 15px;
+            border-top: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn-export { background-color: var(--success-color); color: white; }
+        .btn-export:hover { background-color: #219150; }
+        .btn-clear { background-color: #95a5a6; color: white; }
+        .btn-clear:hover { background-color: #7f8c8d; }
+
+        /* 3. 提示 Toast */
+        #toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(44, 62, 80, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        #toast.show { opacity: 1; }
+
+        /* RWD */
+        @media (max-width: 768px) {
+            body { flex-direction: column; overflow: auto; }
+            #sidebar { width: 100%; height: auto; max-height: 150px; }
+            #vocab-panel { width: 80%; }
+            #vocab-fab { width: 50px; height: 50px; font-size: 20px; bottom: 20px; right: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="vocab-fab" title="開啟生字筆記本">
+    📚
+    <div id="vocab-badge">0</div>
+</div>
+
+<div id="vocab-panel">
+    <div class="vocab-header">
+        <h3>📖 生字筆記本</h3>
+        <button id="close-vocab-btn">&times;</button>
+    </div>
+    <div class="vocab-list-container" id="vocab-list">
+        <div style="padding:20px; text-align:center; color:#999; font-size:0.9rem;">
+            對著文中單字<br>連點兩下 (Double Click)<br>即可加入筆記
+        </div>
+    </div>
+    <div class="vocab-footer">
+        <button class="action-btn btn-export" id="export-btn">📥 匯出成 TXT</button>
+        <button class="action-btn btn-clear" id="clear-btn">🗑️ 清空筆記</button>
+    </div>
+</div>
+
+<div id="toast">已加入筆記本</div>
+
+<div id="sidebar">
+    <div class="sidebar-header">
+        <h2>題目導航</h2>
+    </div>
+    <div class="nav-content">
+        <div id="nav-container" class="nav-grid"></div>
+    </div>
+</div>
+
+<div id="main-content">
+    <div class="sticky-header">
+        <h1 style="margin:0; font-size: 1.2rem;">國立斗六家商高二英文月考 (互動版)</h1>
+        <div class="score-display">得分: <span id="score">0</span></div>
+    </div>
+
+    <div id="quiz-area" class="content-wrapper">
+        </div>
+
+    <div class="content-wrapper">
+        <div class="section-header" style="background: var(--accent-color);">📋 非選擇題參考答案</div>
+        <div id="non-mcq-answers" class="question-card" style="border-left: 6px solid var(--accent-color);">
+            <p><strong>注意：以下為非選擇題，無互動功能，僅供參考答案與解析。</strong></p>
+            
+            <h4 style="color:var(--primary-color);">Part 5: 字彙填空 (一格1分)</h4>
+            <ol style="padding-left: 20px;">
+                <li>The fans g<span style="color:var(--success-color); font-weight:bold;">athered</span> at the airport to welcome the K-pop singer from Seoul. (聚集)</li>
+                <li>Nicole exercises every day to r<span style="color:var(--success-color); font-weight:bold;">educe</span> her stress and stay healthy. (減少)</li>
+                <li>We need to p<span style="color:var(--success-color); font-weight:bold;">romote</span> healthy eating by sharing good food ideas. (促進)</li>
+                <li>The teacher's advice had a positive e<span style="color:var(--success-color); font-weight:bold;">ffect</span> on stella's study habits. (影響)</li>
+                <li>Many popular songs o<span style="color:var(--success-color); font-weight:bold;">riginate</span> from old folk music. (源自)</li>
+                <li>The players showed great team s<span style="color:var(--success-color); font-weight:bold;">pirit</span> during the soccer game. (精神)</li>
+                <li>The real h<span style="color:var(--success-color); font-weight:bold;">ighlight</span> of the concert was when the secret guest showed up and sang with the singer. (亮點)</li>
+                <li>Ms. Lin is teaching a group of little kids to s<span style="color:var(--success-color); font-weight:bold;">eparate</span> glass bottles from plastic ones. (分離/分開)</li>
+            </ol>
+
+            <h4 style="color:var(--primary-color);">Part 6: 片語填空 (一格1分)</h4>
+            <ol style="padding-left: 20px;">
+                <li>The movie is <span style="color:var(--success-color); font-weight:bold;">based on</span> a true story which inspired many people. (以...為基礎)</li>
+                <li>We still <span style="color:var(--success-color); font-weight:bold;">have a long way to go</span> before we achieve our dream. (還有很長的路要走)</li>
+                <li>You need to <span style="color:var(--success-color); font-weight:bold;">care about</span> your health; otherwise, you might get sick. (關心/在乎)</li>
+                <li>Lucas doesn't want to give up this project; <span style="color:var(--success-color); font-weight:bold;">after all</span> he has already spent lots of time working on it. (畢竟)</li>
+            </ol>
+
+            <h4 style="color:var(--primary-color);">Part 7: 改寫句子 (一題2分)</h4>
+            <ol style="padding-left: 20px;">
+                <li>The class had begun before Tom entered the classroom. (過去完成式 + before)</li>
+                <li>Andrew could feel his heart <span style="color:var(--success-color); font-weight:bold;">beating</span> fast and his legs <span style="color:var(--success-color); font-weight:bold;">trembling</span> with fear. (感官動詞 + V-ing/V)</li>
+                <li><span style="color:var(--success-color); font-weight:bold;">Out of the classroom rushed</span> a lot of students. (地方副詞片語置首的倒裝句)</li>
+                <li>Taking part in the exchange student program <span style="color:var(--success-color); font-weight:bold;">has opened my eyes</span>. (將中文翻譯成英文)</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* ========================================= */
+    /* === 1. 測驗資料 (包含所有題目、詳解與答案) === */
+    /* ========================================= */
+    const quizData = [
+        // --- Part 1: Vocabulary ---
+        {
+            id: 11, section: "Part 1: Vocabulary", ans: 1,
+            q: "Spider ______ webs to catch insects and create a safe place to live.",
+            options: ["allow", "weave", "remain", "display"],
+            translation: "蜘蛛編織網子來捕捉昆蟲並建立一個安全的住所。",
+            explain: { main: "空格中需填入動詞，表示蜘蛛製造網子的動作。", options: ["(A) allow 允許", "(B) weave 編織 (正確)", "(C) remain 保持", "(D) display 展示"] }
+        },
+        {
+            id: 12, section: "Part 1: Vocabulary", ans: 3,
+            q: "The online ______ closely watches market trends to decide the best time to buy or sell stocks.",
+            options: ["shepherd", "inventor", "passenger", "trader"],
+            translation: "線上交易員密切觀察市場趨勢，以決定買賣股票的最佳時機。",
+            explain: { main: "根據關鍵字 'buy or sell stocks' (買賣股票)，應選擇與交易相關的職位。", options: ["(A) shepherd 牧羊人", "(B) inventor 發明家", "(C) passenger 乘客", "(D) trader 交易員 (正確)"] }
+        },
+        {
+            id: 13, section: "Part 1: Vocabulary", ans: 0,
+            q: "The students in Taiwan usually have two midterm exams and one final exam per ______.",
+            options: ["semester", "neighborhood", "shepherd", "struggle"],
+            translation: "台灣的學生通常每學期有兩次期中考和一次期末考。",
+            explain: { main: "Midterm exams (期中考) 和 final exam (期末考) 的時間範圍是一致的。", options: ["(A) semester 學期 (正確)", "(B) neighborhood 社區", "(C) shepherd 牧羊人", "(D) struggle 掙扎"] }
+        },
+        {
+            id: 14, section: "Part 1: Vocabulary", ans: 2,
+            q: "According to the law, every ______ was born equally.",
+            options: ["sword", "character", "individual", "campus"],
+            translation: "根據法律，每個人生而平等。",
+            explain: { main: "指代每一個單獨的人。", options: ["(A) sword 劍", "(B) character 角色", "(C) individual 個人 (正確)", "(D) campus 校園"] }
+        },
+        {
+            id: 15, section: "Part 1: Vocabulary", ans: 3,
+            q: "I'm looking forward to ______ the new movie that will be ______ next weekend.",
+            options: ["relaxed", "remained", "represented", "released"],
+            translation: "我期待著那部將於下週末發行的新電影。",
+            explain: { main: "be + Vpp，表示被動，電影是 '被發行' 或 '被上映'。", options: ["(A) relaxed 放鬆的", "(B) remained 保持的", "(C) represented 被代表的", "(D) released 被發行的/上映的 (正確)"] }
+        },
+        {
+            id: 16, section: "Part 1: Vocabulary", ans: 0,
+            q: "Jennifer is a ______ customer of this store so the owner often gives her some discount.",
+            options: ["frequent", "colorful", "additionally", "shepherd"],
+            translation: "Jennifer 是這家店的常客，所以老闆經常給她一些折扣。",
+            explain: { main: "因為有折扣 (discount)，所以表示她是經常光顧的顧客。", options: ["(A) frequent 頻繁的 (正確)", "(B) colorful 多彩的", "(C) additionally 此外地 (副詞，不符詞性)", "(D) shepherd 牧羊人"] }
+        },
+        {
+            id: 17, section: "Part 1: Vocabulary", ans: 2,
+            q: "Dr. Wilson assured me that my ______ would improve after the operation.",
+            options: ["honesty", "basement", "vision", "port"],
+            translation: "Wilson 醫生向我保證，我的視力在手術後會有所改善。",
+            explain: { main: "在 'operation' (手術) 後會改善的身體功能。", options: ["(A) honesty 誠實", "(B) basement 地下室", "(C) vision 視力 (正確)", "(D) port 港口"] }
+        },
+        {
+            id: 18, section: "Part 1: Vocabulary", ans: 3,
+            q: "A train is ______ the station and is scheduled to depart at 13:11.",
+            options: ["exploring", "focusing", "grabbing", "approaching"],
+            translation: "一列火車正接近車站，預計 13:11 發車。",
+            explain: { main: "火車在 'depart' (離開) 前的動作是 '接近'。", options: ["(A) exploring 探索", "(B) focusing 專注", "(C) grabbing 抓取", "(D) approaching 接近 (正確)"] }
+        },
+        {
+            id: 19, section: "Part 1: Vocabulary", ans: 1,
+            q: "The trap had a piece of cheese as ______ for the mouse.",
+            options: ["society", "bait", "career", "mental"],
+            translation: "陷阱裡放了一塊乳酪作為老鼠的誘餌。",
+            explain: { main: "放在陷阱裡吸引動物的東西。", options: ["(A) society 社會", "(B) bait 誘餌 (正確)", "(C) career 職業", "(D) mental 心理的/精神的"] }
+        },
+        {
+            id: 20, section: "Part 1: Vocabulary", ans: 0,
+            q: "She found a red ______ on her new white shirt.",
+            options: ["spot", "flock", "nest", "spice"],
+            translation: "她在她的新白襯衫上發現了一個紅色的斑點。",
+            explain: { main: "指衣服上的污漬或印記。", options: ["(A) spot 斑點/污點 (正確)", "(B) flock (鳥獸的) 群", "(C) nest 巢", "(D) spice 香料"] }
+        },
+        {
+            id: 21, section: "Part 1: Vocabulary", ans: 2,
+            q: "Have you been to see the Picasso exhibition at the ______ downtown?",
+            options: ["graduate", "gradual", "gallery", "garlic"],
+            translation: "你去市中心的畫廊看畢卡索的展覽了嗎？",
+            explain: { main: "Exhibition (展覽) 通常在 ______ 舉行。", options: ["(A) graduate 畢業生/畢業", "(B) gradual 逐漸的", "(C) gallery 畫廊 (正確)", "(D) garlic 大蒜"] }
+        },
+        {
+            id: 22, section: "Part 1: Vocabulary", ans: 1,
+            q: "He needs ______ so he asked his big brother for advice.",
+            options: ["guardian", "guidance", "grocery", "grasp"],
+            translation: "他需要指導，所以他向他的哥哥尋求建議。",
+            explain: { main: "Ask for advice (尋求建議) 表示需要 '指導'。", options: ["(A) guardian 監護人", "(B) guidance 指導/引導 (正確)", "(C) grocery 雜貨店/食品", "(D) grasp 抓住/理解"] }
+        },
+        {
+            id: 23, section: "Part 1: Vocabulary", ans: 2,
+            q: "If a person is ______ of a crime, that means he or she did not commit it.",
+            options: ["jealous", "inner", "innocent", "inferior"],
+            translation: "如果一個人是清白的，那意味著他/她沒有犯下該罪行。",
+            explain: { main: "Did not commit it (沒有犯下罪行) 表示他是 '無辜的'。", options: ["(A) jealous 嫉妒的", "(B) inner 內部的", "(C) innocent 無辜的/清白的 (正確)", "(D) inferior 較差的"] }
+        },
+        {
+            id: 24, section: "Part 1: Vocabulary", ans: 3,
+            q: "Giving ______ someone means showing or telling them how to do something.",
+            options: ["jewels", "introductions", "mention", "instructions"],
+            translation: "給予指示意味著向某人展示或告訴他們如何做某事。",
+            explain: { main: "Showing or telling them how to do something (展示或告訴他們如何做) 是 '指示'。", options: ["(A) jewels 珠寶", "(B) introductions 介紹", "(C) mention 提及 (動詞)", "(D) instructions 指示/說明 (正確)"] }
+        },
+        {
+            id: 25, section: "Part 1: Vocabulary", ans: 0,
+            q: "If you ______ something, you fix it.",
+            options: ["mend", "merry", "missile", "melt"],
+            translation: "如果你修理某物，就是修復它。",
+            explain: { main: "Fix it (修理它) 的同義詞。", options: ["(A) mend 修理/修補 (正確)", "(B) merry 快樂的", "(C) missile 飛彈", "(D) melt 融化"] }
+        },
+        {
+            id: 26, section: "Part 1: Vocabulary", ans: 2,
+            q: "A ______ is a weapon that flies through the air and explodes when it hits its target.",
+            options: ["mixture", "moisture", "missile", "miracle"],
+            translation: "飛彈是一種在空中飛行並擊中目標時爆炸的武器。",
+            explain: { main: "一種會飛且會爆炸的 '武器'。", options: ["(A) mixture 混合物", "(B) moisture 濕氣", "(C) missile 飛彈 (正確)", "(D) miracle 奇蹟"] }
+        },
+        {
+            id: 27, section: "Part 1: Vocabulary", ans: 3,
+            q: "You need to know the ______ to get into this computer program.",
+            options: ["passport", "parcel", "paradise", "password"],
+            translation: "你需要知道密碼才能進入這個電腦程式。",
+            explain: { main: "進入電腦程式所需的 '秘密代碼'。", options: ["(A) passport 護照", "(B) parcel 包裹", "(C) paradise 天堂", "(D) password 密碼 (正確)"] }
+        },
+        {
+            id: 28, section: "Part 1: Vocabulary", ans: 1,
+            q: "The ______ for speeding is a fine of $5000.",
+            options: ["penny", "penalty", "peep", "palace"],
+            translation: "超速的罰款是 5000 美元。",
+            explain: { main: "因違規而受到的 '懲罰' 或 '罰款'。", options: ["(A) penny 一分錢", "(B) penalty 懲罰/罰款 (正確)", "(C) peep 偷看", "(D) palace 宮殿"] }
+        },
+        {
+            id: 29, section: "Part 1: Vocabulary", ans: 2,
+            q: "You have to get ______ from the teacher if you want to borrow any of these books.",
+            options: ["portion", "postage", "permission", "pursue"],
+            translation: "如果你想借這些書，你必須得到老師的允許。",
+            explain: { main: "詢問老師 (ask the teacher) 借書，需要得到 '允許'。", options: ["(A) portion 一部分/份量", "(B) postage 郵資", "(C) permission 允許/許可 (正確)", "(D) pursue 追求 (動詞)"] }
+        },
+        {
+            id: 30, section: "Part 1: Vocabulary", ans: 1,
+            q: "To ______ an event means to delay is until a later time.",
+            options: ["provide", "postpone", "process", "pursue"],
+            translation: "延期一個活動意味著將其推遲到稍後的時間。",
+            explain: { main: "Delay (延遲) 的同義詞。", options: ["(A) provide 提供", "(B) postpone 延期 (正確)", "(C) process 過程/處理", "(D) pursue 追求"] }
+        },
+        {
+            id: 31, section: "Part 1: Vocabulary", ans: 0,
+            q: "You can make your speech more effective by using the right ______.",
+            options: ["gestures", "gossips", "gallons", "gaps"],
+            translation: "你可以透過使用正確的手勢來使你的演講更有效。",
+            explain: { main: "在演講中能使表達更有效的方式。", options: ["(A) gestures 手勢 (正確)", "(B) gossips 八卦", "(C) gallons 加侖 (液體單位)", "(D) gaps 縫隙/差距"] }
+        },
+        {
+            id: 32, section: "Part 1: Vocabulary", ans: 3,
+            q: "Food and water are ______ human needs.",
+            options: ["furniture", "frustrate", "frozen", "fundamental"],
+            translation: "食物和水是人類的基本需求。",
+            explain: { main: "指 '基礎的'、 '必要的' 需求。", options: ["(A) furniture 家具", "(B) frustrate 使挫折 (動詞)", "(C) frozen 結冰的", "(D) fundamental 基本的/基礎的 (正確)"] }
+        },
+        {
+            id: 33, section: "Part 1: Vocabulary", ans: 1,
+            q: "The hen sat on her eggs to keep them warm until they ______.",
+            options: ["hesitated", "hatched", "harvested", "hinted"],
+            translation: "母雞坐在蛋上保溫，直到它們孵化出來。",
+            explain: { main: "雞蛋在保溫後的動作。", options: ["(A) hesitated 猶豫 (動詞)", "(B) hatched 孵化 (正確)", "(C) harvested 收穫 (動詞)", "(D) hinted 暗示 (動詞)"] }
+        },
+        {
+            id: 34, section: "Part 1: Vocabulary", ans: 1,
+            q: "The spy tried hard to disguise himself to hide his true ______.",
+            options: ["imagination", "identity", "intellectual", "interrupt"],
+            translation: "間諜努力偽裝自己，以隱藏他真實的身份。",
+            explain: { main: "Disguise (偽裝) 是為了隱藏真實的 '身份'。", options: ["(A) imagination 想像力", "(B) identity 身份 (正確)", "(C) intellectual 知識分子/智力的", "(D) interrupt 打斷 (動詞)"] }
+        },
+        {
+            id: 35, section: "Part 1: Vocabulary", ans: 0,
+            q: "There can only be true ______ if all the people are treated equally and fairly.",
+            options: ["justice", "junk", "jail", "journal"],
+            translation: "如果所有人都得到平等和公正的對待，才能有真正的正義。",
+            explain: { main: "Equally and fairly (平等且公正地) 的結果是 '正義'。", options: ["(A) justice 正義/公平 (正確)", "(B) junk 垃圾", "(C) jail 監獄", "(D) journal 日記/期刊"] }
+        },
+        {
+            id: 36, section: "Part 1: Vocabulary", ans: 2,
+            q: "With one big ______ the dog jumped over the big fence.",
+            options: ["leak", "liberty", "leap", "leather"],
+            translation: "狗一躍就跳過了那個大籬笆。",
+            explain: { main: "Jumped over (跳過) 需要一個大 '跳躍'。", options: ["(A) leak 洩漏", "(B) liberty 自由", "(C) leap 跳躍 (正確)", "(D) leather 皮革"] }
+        },
+        {
+            id: 37, section: "Part 1: Vocabulary", ans: 1,
+            q: "The ______ is a part of the body that helps to clean the blood.",
+            options: ["lord", "liver", "lung", "litter"],
+            translation: "肝臟是身體的一部分，有助於淨化血液。",
+            explain: { main: "身體裡負責 '淨化血液' 的器官。", options: ["(A) lord 領主/上帝", "(B) liver 肝臟 (正確)", "(C) lung 肺", "(D) litter 垃圾/一窩動物"] }
+        },
+        {
+            id: 38, section: "Part 1: Vocabulary", ans: 2,
+            q: "People have the ______ to choose their leader in a democratic country.",
+            options: ["loose", "limited", "liberty", "maximum"],
+            translation: "在民主國家，人民有權利選擇他們的領導人。",
+            explain: { main: "指 '自由' 或 '權利'。", options: ["(A) loose 鬆散的", "(B) limited 有限的", "(C) liberty 自由/權利 (正確)", "(D) maximum 最大值"] }
+        },
+        {
+            id: 39, section: "Part 1: Vocabulary", ans: 3,
+            q: "This elevator can take a ______ of eight adults. A bigger load is too heavy.",
+            options: ["minority", "merchant", "marvelous", "maximum"],
+            translation: "這部電梯最大載重是八個成人。更重的負荷就太重了。",
+            explain: { main: "指 '最大的' 載重限制。", options: ["(A) minority 少數", "(B) merchant 商人", "(C) marvelous 了不起的", "(D) maximum 最大值 (正確)"] }
+        },
+        {
+            id: 40, section: "Part 1: Vocabulary", ans: 0,
+            q: "Families living in ______ often have no money to buy food, let alone new clothes.",
+            options: ["poverty", "pottery", "portrait", "performance"],
+            translation: "生活在貧困中的家庭經常沒錢買食物，更不用說新衣服了。",
+            explain: { main: "No money (沒錢) 是指生活在 '貧困' 中。", options: ["(A) poverty 貧困/窮困 (正確)", "(B) pottery 陶器", "(C) portrait 肖像", "(D) performance 表演"] }
+        },
+        
+        // --- Part 2: Conversation ---
+        {
+            id: 41, section: "Part 2: Conversation", ans: 3,
+            q: "Amy: Justin? Wow, I thought guys didn't like fashion.\nJustin: That's a stereotype, but this is still a nice surprise. Long time no see!\nAmy: It sure has been a while.\nJustin: I'm great! And you?\nAmy: ______",
+            options: ["What time is it?", "How long will it take?", "What for?", "How's everything?"],
+            translation: "Amy問：「你最近如何？」Justin回答：「我很好！你呢？」",
+            explain: { main: "Justin 回答 'I'm great! And you?'，表示 Amy 的問句是在詢問近況。", options: ["(A) 現在幾點？", "(B) 需要多久？", "(C) 為了什麼？", "(D) 一切都好嗎？ (正確)"] }
+        },
+        {
+            id: 42, section: "Part 2: Conversation", ans: 2,
+            q: "Cathy: You look upset. ______\nJohn: Thanks for asking. It's my little sister's birthday today. I promised to give her a model car this year, but I totally forgot about it.",
+            options: ["What for?", "How long will it last?", "What's going on?", "When will it take place?"],
+            translation: "Cathy：「你看起來心煩。發生什麼事了？」John接著解釋問題。",
+            explain: { main: "在發現對方情緒不佳 (You look upset) 時，詢問發生了什麼事。", options: ["(A) 為了什麼？", "(B) 會持續多久？", "(C) 發生什麼事了？ (正確)", "(D) 什麼時候會舉行？"] }
+        },
+        {
+            id: 43, section: "Part 2: Conversation", ans: 0,
+            q: "Glen: Nice to meet you at last, Nina. Jane has told me so much about you.\nNina: ______\nGlen: That's true. I guess we have a lot to talk about!",
+            options: ["Likewise. She also mentioned that you and I work in the same field.", "But I barely know anything about you.", "I am so thirsty that I could drink a whole bottle of water right now.", "Cheer up! Don't pull a long face."],
+            translation: "Nina：「我也是。她也提到你和我在同一個領域工作。」Glen說：「沒錯，看來我們有很多話可以聊。」",
+            explain: { main: "Nina 的回應需要能引導出 Glen 接下來的 'That's true...' 和 'a lot to talk about'。在同一個領域工作會有很多共同話題。", options: ["(A) 我也是。她也提到你和我在同一個領域工作。 (正確)", "(B) 但我對你幾乎一無所知。", "(C) 我口渴得能喝下一整瓶水。", "(D) 振作起來！別拉長著臉。"] }
+        },
+        {
+            id: 44, section: "Part 2: Conversation", ans: 1,
+            q: "Lucy: I'm so glad you could make it!\nLance: ______ Lucy, this is my girlfriend, Kate.",
+            options: ["I have no idea what you are talking about.", "We wouldn't have missed it for the world.", "No matter how you may decide, I'll be there for you.", "Check out my new laptop computer!"],
+            translation: "Lucy：「很高興你能來！」Lance：「我們絕對不會錯過這個機會。」",
+            explain: { main: "Wouldn't miss it for the world 是慣用語，意指 '無論如何都不會錯過'，是對邀請的強烈肯定回應。", options: ["(A) 我不知道你在說什麼。", "(B) 我們絕對不會錯過它。(正確)", "(C) 無論你怎麼決定，我都會支持你。", "(D) 看看我的新筆記型電腦！"] }
+        },
+        {
+            id: 45, section: "Part 2: Conversation", ans: 1,
+            q: "Ben: Let me introduce you to my wife later. She is also a painter.\nKelly: Maybe she and I could meet up and chat sometime.\nBen: Sure thing! Well, I'd better go and mingle with the other guests for now.\nKelly: ______ It's your big day today.",
+            options: ["I'd like to keep a pet at home.", "Of course. Don't let me keep you.", "Perhaps we should discuss it in detail.", "We had better talk now."],
+            translation: "Ben：「我最好先去和其他客人交際一下。」Kelly：「當然。別讓我耽誤了你。今天是你的大日子。」",
+            explain: { main: "當 Ben 說 'I'd better go' (我最好走了) 時，Kelly 應表示理解並讓他離開。", options: ["(A) 我想在家養寵物。", "(B) 當然。別讓我耽誤你。 (正確)", "(C) 或許我們應該詳細討論。", "(D) 我們最好現在就談。"] }
+        },
+        
+        // --- Part 3: Cloze Test (Passage 1: Ban-doh) ---
+        {
+            id: 46, section: "Part 3: Cloze Test (Ban-doh)", ans: 1,
+            passage: "I am studying abroad in Taiwan. So far, my favorite experience here was a wedding meal I attended in Kaohsiung. The meal (46) ______ out on the street under a huge tent. I learned (47) ______ this type of meal is called a \"ban-doh\" in Taiwanese. My host father told me that this tradition (48) ______ long before in the countryside. When someone had reason to celebrate, they would organize a ban-doh to share the good news (49) ______ others. They would then prepare food for the meal and invite everyone in the local area. Over time, ban-dohs (50) ______ somewhat, but they are still based on the idea of people coming together and enjoying a good time. I think this experience will remain one of my lasting memories of Taiwan.",
+            q: "The meal (46) ______ out on the street under a huge tent.",
+            options: ["held", "took place", "was holding", "was taken place"],
+            translation: "這頓飯是在街道上的一個巨大帳篷下舉行的。",
+            explain: { main: "舉行 (發生) 應用片語 'take place'。此片語為不及物動詞，沒有被動態，因此不能選 held 或 was taken place。", options: ["(A) held (需被動)", "(B) took place (正確)", "(C) was holding (主動，且不常用於此意)", "(D) was taken place (文法錯誤)"] }
+        },
+        {
+            id: 47, section: "Part 3: Cloze Test (Ban-doh)", ans: 1,
+            q: "I learned (47) ______ this type of meal is called a \"ban-doh\" in Taiwanese.",
+            options: ["which", "that", "whether", "of"],
+            translation: "我得知這種餐點在台灣被稱為「辦桌」。",
+            explain: { main: "learn (得知/獲悉) 後接一個名詞子句，由 'that' 引導。", options: ["(A) which (關係代名詞，不符)", "(B) that (引導名詞子句，正確)", "(C) whether (是否)", "(D) of (介詞)"] }
+        },
+        {
+            id: 48, section: "Part 3: Cloze Test (Ban-doh)", ans: 2,
+            q: "My host father told me that this tradition (48) ______ long before in the countryside.",
+            options: ["starts", "was starting", "had started", "had been started"],
+            translation: "我的寄宿家庭父親告訴我，這個傳統很久以前就已經在鄉下開始了。",
+            explain: { main: "句中有 'told' (過去式)，而傳統 '開始' 發生在 'told' 之前，故使用過去完成式 (had started)。", options: ["(A) starts (現在式)", "(B) was starting (過去進行式)", "(C) had started (過去完成式，正確)", "(D) had been started (過去完成被動式，但傳統是自己開始的)"] }
+        },
+        {
+            id: 49, section: "Part 3: Cloze Test (Ban-doh)", ans: 2,
+            q: "When someone had reason to celebrate, they would organize a ban-doh to share the good news (49) ______ others.",
+            options: ["of", "for", "with", "over"],
+            translation: "他們會舉辦辦桌來與他人分享好消息。",
+            explain: { main: "share A with B (與 B 分享 A)。", options: ["(A) of", "(B) for", "(C) with (正確)", "(D) over"] }
+        },
+        {
+            id: 50, section: "Part 3: Cloze Test (Ban-doh)", ans: 3,
+            q: "Over time, ban-dohs (50) ______ somewhat, but they are still based on the idea...",
+            options: ["changes", "to change", "changing", "have changed"],
+            translation: "隨著時間的推移，辦桌多少有些變化。",
+            explain: { main: "Over time (隨著時間的推移) 常搭配現在完成式，且 ban-dohs (複數主詞) 應搭配複數動詞。", options: ["(A) changes (單數動詞)", "(B) to change (不定詞)", "(C) changing (動名詞/分詞)", "(D) have changed (現在完成式，正確)"] }
+        },
+        
+        // --- Part 3: Cloze Test (Passage 2: Toy Departments) ---
+        {
+            id: 51, section: "Part 3: Cloze Test (Toy Departments)", ans: 3,
+            passage: "Most toy departments are divided into sections for girls' and boys' toys. This makes it easy for parents who are (51) ______ a gift for their child. This arrangement (52) ______ quite usual and few question it. However, while some people are used to this practice, (53) ______ question if toy departments should continue to group toys by genders. Some people have started to feel that this practice restricts a child's development. (54) ______ girls like playing sports and some boys like fashion. (55) ______ learning to play basketball at a young age, maybe a girl can someday play on the Olympic team. If a boy is (56) ______ dressing dolls, perhaps he can become a famous fashion designer one day. Some stores have begun to remove gender bias (57) ______ their toy departments. Let's wait and see what the results may be.",
+            q: "This makes it easy for parents who are (51) ______ a gift for their child.",
+            options: ["looking like", "looking around", "looking at", "looking for"],
+            translation: "這讓那些正在為孩子尋找禮物的父母來說，變得容易。",
+            explain: { main: "尋找禮物應用片語 'look for'。", options: ["(A) looking like 看起來像", "(B) looking around 環顧四周", "(C) looking at 觀看", "(D) looking for 尋找 (正確)"] }
+        },
+        {
+            id: 52, section: "Part 3: Cloze Test (Toy Departments)", ans: 0,
+            q: "This arrangement (52) ______ quite usual and few question it.",
+            options: ["seems", "seems to", "seems like", "seems that"],
+            translation: "這種安排看起來非常普遍，很少有人質疑。",
+            explain: { main: "Arrangement (單數主詞) 需搭配單數動詞 'seems'，後面可直接接形容詞 (quite usual)。", options: ["(A) seems (正確)", "(B) seems to (後面需接動詞原型)", "(C) seems like (後面需接名詞或名詞子句)", "(D) seems that (後面需接完整子句)"] }
+        },
+        {
+            id: 53, section: "Part 3: Cloze Test (Toy Departments)", ans: 1,
+            q: "However, while some people are used to this practice, (53) ______ question if toy departments should continue...",
+            options: ["other", "others", "another", "the others"],
+            translation: "然而，當有些人習慣了這種做法時，其他人則質疑玩具部門是否應繼續…",
+            explain: { main: "others (代名詞) 指 '其他的人'，在句中作主詞。", options: ["(A) other (形容詞)", "(B) others (正確)", "(C) another (單數，不符語境)", "(D) the others (指剩下的所有人，語氣過於絕對)"] }
+        },
+        {
+            id: 54, section: "Part 3: Cloze Test (Toy Departments)", ans: 0,
+            q: "Some people have started to feel that this practice restricts a child's development. (54) ______ girls like playing sports and some boys like fashion.",
+            options: ["For example", "In addition", "Therefore", "However"],
+            translation: "例如，有些女孩喜歡運動，有些男孩喜歡時尚。",
+            explain: { main: "後面的句子舉例說明了前面 'restricts a child's development' 的觀點。", options: ["(A) For example (舉例來說，正確)", "(B) In addition 此外", "(C) Therefore 因此", "(D) However 然而"] }
+        },
+        {
+            id: 55, section: "Part 3: Cloze Test (Toy Departments)", ans: 1,
+            q: "(55) ______ learning to play basketball at a young age, maybe a girl can someday play on the Olympic team.",
+            options: ["For", "By", "With", "To"],
+            translation: "透過在年輕時學習打籃球，也許一個女孩有一天可以參加奧運隊。",
+            explain: { main: "表示透過某種方式或手段來達成目標，應用 'By + Ving'。", options: ["(A) For", "(B) By (正確)", "(C) With", "(D) To"] }
+        },
+        {
+            id: 56, section: "Part 3: Cloze Test (Toy Departments)", ans: 2,
+            q: "If a boy is (56) ______ dressing dolls, perhaps he can become a famous fashion designer one day.",
+            options: ["familiar to", "filled with", "good at", "according to"],
+            translation: "如果一個男孩擅長給娃娃打扮，也許有一天他可以成為著名的時裝設計師。",
+            explain: { main: "表示 '擅長' 某事，應用片語 'be good at'。", options: ["(A) familiar to 對...熟悉", "(B) filled with 充滿", "(C) good at 擅長 (正確)", "(D) according to 根據"] }
+        },
+        {
+            id: 57, section: "Part 3: Cloze Test (Toy Departments)", ans: 3,
+            q: "Some stores have begun to remove gender bias (57) ______ their toy departments.",
+            options: ["on", "for", "in", "from"],
+            translation: "一些商店已開始從他們的玩具部門移除性別偏見。",
+            explain: { main: "移除 A '從' B 中，應用 'remove A from B'。", options: ["(A) on", "(B) for", "(C) in", "(D) from (正確)"] }
+        },
+
+        // --- Part 3: Cloze Test (Passage 3: Eating in India) ---
+        {
+            id: 58, section: "Part 3: Cloze Test (Eating in India)", ans: 2,
+            passage: "What should you do, or not do, when eating in India? First of all, Indians are probably the most welcoming people on earth. They love to create (58) ______ togetherness in their homes. (59) ______ of the rules, though, is that you don't have to be exactly on time. If your host says dinner is at 7:00, for example, actually being there at 7:00 is not expected at all. In fact, it seems to be OK to be 15 or 20 minutes \"late.\" If you are curious (60) ______ what happens next, read on. You may be served some (61) ______ snacks first, or drinks. This gives you a chance to chat with your host. Next, your host will invite you to the table for the main meal. The difference (62) ______ western meals and Indian ones is that in India, there will be several dishes from which you can serve yourself. Just try a little bit of everything!",
+            q: "They love to create (58) ______ togetherness in their homes.",
+            options: ["a number of", "a waste of", "a sense of", "a series of"],
+            translation: "他們喜歡在家裡營造一種團結感。",
+            explain: { main: "a sense of (一種...的感覺/感觸)。", options: ["(A) a number of 許多 (數量)", "(B) a waste of 浪費", "(C) a sense of ...感 (正確)", "(D) a series of 一系列"] }
+        },
+        {
+            id: 59, section: "Part 3: Cloze Test (Eating in India)", ans: 1,
+            q: "(59) ______ of the rules, though, is that you don't have to be exactly on time.",
+            options: ["Some", "One", "Many", "Few"],
+            translation: "不過，其中一條規則是你不必非常準時。",
+            explain: { main: "因為後面接的是單數動詞 'is'，故主詞應用單數 'One'。", options: ["(A) Some (複數)", "(B) One (正確)", "(C) Many (複數)", "(D) Few (複數)"] }
+        },
+        {
+            id: 60, section: "Part 3: Cloze Test (Eating in India)", ans: 0,
+            q: "If you are curious (60) ______ what happens next, read on.",
+            options: ["about", "within", "into", "by"],
+            translation: "如果你對接下來發生的事情感到好奇，請繼續閱讀。",
+            explain: { main: "對...感到好奇，應用片語 'curious about'。", options: ["(A) about (正確)", "(B) within", "(C) into", "(D) by"] }
+        },
+        {
+            id: 61, section: "Part 3: Cloze Test (Eating in India)", ans: 3,
+            q: "You may be served some (61) ______ snacks first, or drinks.",
+            options: ["looking-delicious", "deliciously-looking", "looking-deliciously", "delicious-looking"],
+            translation: "你可能會先吃到一些看起來很美味的點心或飲料。",
+            explain: { main: "應使用『形容詞-looking』的複合形容詞形式，指 '看起來很美味的'。", options: ["(A) looking-delicious (錯誤，形容詞-Ving不成立)", "(B) deliciously-looking (副詞 + V-ing 不常用)", "(C) looking-deliciously (錯誤)", "(D) delicious-looking (正確)"] }
+        },
+        {
+            id: 62, section: "Part 3: Cloze Test (Eating in India)", ans: 2,
+            q: "The difference (62) ______ western meals and Indian ones is that in India...",
+            options: ["among", "opposite", "between", "under"],
+            translation: "西方餐點和印度餐點之間的差異在於...",
+            explain: { main: "兩者之間的不同，應用 'difference between A and B'。", options: ["(A) among (三者以上之間)", "(B) opposite (相反)", "(C) between (兩者之間，正確)", "(D) under"] }
+        },
+        
+        // --- Part 4: Reading Comprehension (Passage 1: Toy Preference) ---
+        {
+            id: 63, section: "Part 4: Reading Comprehension (Toy Table)", ans: 0,
+            passage: "GIRLS (aged 9~12):\nDollhouses: 11%\nSand buckets and spades: 20%\nTeddy bears: 21%\nDolls: 22%\nTablets: 26%\n\nBOYS (aged 9-12):\nBuilding blocks: 10%\nBalls: 13%\nToy vehicles: 16%\nRobots: 21%\nTV games: 40%",
+            q: "Based on the results, what do nine-year-old girls mostly play with?",
+            options: ["Tablets", "Dolls", "Teddy bears", "Dollhouses"],
+            translation: "根據結果，九歲女孩最常玩什麼？",
+            explain: { main: "根據表格中 Girls (9-12) 的數據，Tablets 佔 26%，為最高百分比。", options: ["(A) Tablets (26%，最高，正確)", "(B) Dolls (22%)", "(C) Teddy bears (21%)", "(D) Dollhouses (11%)"] }
+        },
+        {
+            id: 64, section: "Part 4: Reading Comprehension (Toy Table)", ans: 3,
+            q: "What do ten-year-old boys play with least?",
+            options: ["Balls", "Robots", "Toy Vehicles", "Building blocks"],
+            translation: "十歲男孩最少玩什麼？",
+            explain: { main: "根據表格中 Boys (9-12) 的數據，Building blocks 佔 10%，為最低百分比。", options: ["(A) Balls (13%)", "(B) Robots (21%)", "(C) Toy Vehicles (16%)", "(D) Building blocks (10%，最低，正確)"] }
+        },
+        {
+            id: 65, section: "Part 4: Reading Comprehension (Toy Table)", ans: 2,
+            q: "What else do the results tell us?",
+            options: ["Girls aged eleven don't play with dollhouses.", "Boys aged eleven don't play with toy vehicles.", "Over a quarter of girls aged nine play with tablets.", "Under a quarter of boys aged nine play TV games."],
+            translation: "結果還告訴了我們什麼？",
+            explain: { main: " Girls 玩 Tablets 的比例是 26%，超過了四分之一 (25%)。", options: ["(A) 11歲不在範圍內 (不確定)", "(B) 11歲不在範圍內 (不確定)", "(C) 女孩玩平板的比例 (26%) 超過四分之一 (25%)。(正確)", "(D) 男孩玩電視遊戲的比例是 40%，遠超四分之一。"] }
+        },
+        
+        // --- Part 4: Reading Comprehension (Passage 2: Wedding Invite) ---
+        {
+            id: 66, section: "Part 4: Reading Comprehension (Wedding Invite)", ans: 3,
+            passage: "PLEASE JOIN US FOR A SPECIAL OUTDOOR BAN-DOH TO CELEBRATE THE LOVE AND MARRIAGE OF Franklin + Karen\nSATURDAY | DEC 15 2030 | 6:30 PM\nCedar Bay Retreat Riverfront Garden Villa 8th Rd., Wugu Dist., New Taipei City 248, Taiwan (R.O.C.)\nKindly reply by Nov. 15 to franklinkaren@gmail.com or to the bride's mother at 555-3456.",
+            q: "Where will the wedding be held?",
+            options: ["The couple's home.", "In a garden villa.", "In a ballroom in Cedar Bay.", "Outdoor space along a river."],
+            translation: "婚禮將在哪裡舉行？",
+            explain: { main: "地點是 'Cedar Bay Retreat Riverfront Garden Villa'。關鍵字 'Riverfront' (河邊) 和 'Outdoor BAN-DOH' (戶外辦桌)，表示是在河邊的戶外空間。", options: ["(A) 新人家中。", "(B) 在花園別墅內 (太籠統)", "(C) 在舞廳 (錯誤)", "(D) 沿著河邊的戶外空間。(正確)"] }
+        },
+        {
+            id: 67, section: "Part 4: Reading Comprehension (Wedding Invite)", ans: 3, /* 參考 PDF 答案選擇 D */
+            q: "Which items will most likely be seen at Franklin and Karen's wedding?",
+            options: ["Easter eggs.", "Christmas trees.", "Hot air balloons.", "Dragon boats."],
+            translation: "哪些物品最有可能在 Franklin 和 Karen 的婚禮上看到？",
+            explain: { main: "此題應為邏輯推理題，若在台灣傳統場景舉行戶外辦桌，且地點在 Riverfront (河邊)，則最可能看到傳統元素。根據原始答案（假設為 D），龍舟（Dragon boats）可能與河邊相關聯，但此題缺乏上下文，暫定依據原答案，但註記其推論性。", options: ["(A) 復活節彩蛋", "(B) 聖誕樹", "(C) 熱氣球", "(D) 龍舟 (根據推論與地點 'Riverfront' 相關聯，暫定為正確答案)"] }
+        },
+        {
+            id: 68, section: "Part 4: Reading Comprehension (Wedding Invite)", ans: 3,
+            q: "At least how many days before the wedding reception do guests have to reply to the invitation?",
+            options: ["7 days.", "15 days.", "21 days.", "30 days."],
+            translation: "客人在婚宴前至少多少天必須回覆邀請？",
+            explain: { main: "婚禮日期是 Dec 15 (12月15日)，要求回覆日期是 Nov 15 (11月15日)。間隔剛好 30 天。", options: ["(A) 7 天", "(B) 15 天", "(C) 21 天", "(D) 30 天 (正確)"] }
+        },
+
+        // --- Part 4: Reading Comprehension (Passage 3: Job Ad) ---
+        {
+            id: 69, section: "Part 4: Reading Comprehension (Job Ad)", ans: 3,
+            passage: "Ban-doh Master Chef Wanted. Full-time job. Tuesday to Saturday, early start 6 a.m. • Good English for hiring and communicating with staff members. At least 5-year experience in arranging Ban-doh feasts. We would like to work with people who are... 1. able to communicate with people at all levels. 2. self-motivated and have an eye for detail. Applicants for this position should have New Zealand residency or a valid NZ work visa. Interested candidates must forward their CVs to valerie@bbrcateringservice.com",
+            q: "What information does the job advertisement give?",
+            options: ["Salary.", "Annual leaves.", "Employee benefits.", "Working hours."],
+            translation: "這則招聘廣告提供了哪些資訊？",
+            explain: { main: "廣告中明確提到了 'Tuesday to Saturday, early start 6 a.m.' (工作時間)。", options: ["(A) 薪水 (未提)", "(B) 年假 (未提)", "(C) 員工福利 (未提)", "(D) 工作時間 (正確)"] }
+        },
+        {
+            id: 70, section: "Part 4: Reading Comprehension (Job Ad)", ans: 1,
+            q: "Which qualification is NOT included in the job requirements?",
+            options: ["Language.", "Education.", "Experience.", "Personality."],
+            translation: "哪一項資格條件沒有包含在職位要求中？",
+            explain: { main: "Language (Good English)、Experience (5-year experience)、Personality (self-motivated) 都有提到，只有 Education (學歷) 未被提及。", options: ["(A) 語言 (有提到英文)", "(B) 學歷 (未提到，正確)", "(C) 經驗 (有提到 5 年)", "(D) 個性 (有提到自律等)"] }
+        },
+        {
+            id: 71, section: "Part 4: Reading Comprehension (Job Ad)", ans: 1,
+            q: "Why is English necessary for interested candidates?",
+            options: ["To build good customer relationships.", "To communicate with co-workers.", "To assist company to market in NZ.", "To design English food recipe."],
+            translation: "為什麼對感興趣的應徵者來說，英文是必要的？",
+            explain: { main: "廣告中明確說明了 'for hiring and communicating with staff members' (用於招募和與員工溝通)。", options: ["(A) 建立良好的客戶關係", "(B) 與同事溝通 (正確)", "(C) 協助公司在紐西蘭行銷", "(D) 設計英文食譜"] }
+        },
+
+        // --- Part 4: Reading Comprehension (Passage 4: Matchmakers) ---
+        {
+            id: 72, section: "Part 4: Reading Comprehension (Matchmakers)", ans: 0,
+            passage: "Matchmakers are important in some Taiwanese traditions. They bring gifts and talk about marriage details. Many older people also believe that matchmakers can bring the newlywed's good luck. Now, many young people find love by themselves, but matchmakers are still a part of Taiwanese culture. Some families ask them for help, especially for big weddings. If you visit Taiwan, you may see a matchmaker at a wedding. They help people start their happy life together! In Taiwan, matchmakers help people find a husband or wife. In the past, families used matchmakers to choose a good partner for their child. Even in today's busy, high-pressure society, some people still use them to find love. A matchmaker talks to both families and checks if the man and woman are a good match. They look at birth dates, family backgrounds, and personalities. Sometimes, they also help with wedding plans.",
+            q: "What is the best title for this passage?",
+            options: ["How Matchmakers Help in Love and Marriage", "Why Young People Don't Use Matchmakers", "The History of Matchmakers in Asian Culture", "A Typical Day in the Life of a Matchmaker"],
+            translation: "這篇文章最好的標題是什麼？",
+            explain: { main: "文章主要在解釋媒人在婚姻和文化中的作用。", options: ["(A) 媒人如何在愛情和婚姻中提供幫助 (正確)", "(B) 為何年輕人不用媒人 (文章說仍有人用)", "(C) 亞洲歷史 (範圍太廣)", "(D) 典型的一天 (未提及細節)"] }
+        },
+        {
+            id: 73, section: "Part 4: Reading Comprehension (Matchmakers)", ans: 3,
+            q: "According to the passage, what does a matchmaker look at when deciding if a man and a woman are a good match?",
+            options: ["Their job titles and favorite hobbies.", "Their ages, blood types, and birthdays.", "Their school grades and daily schedules.", "Their family backgrounds and personalities."],
+            translation: "根據文章，媒人在決定一對男女是否匹配時會看什麼？",
+            explain: { main: "文章明確提到：'They look at birth dates, family backgrounds, and personalities.'", options: ["(A) 職位和愛好 (未提)", "(B) 血型未提，但提到了出生日期 (birth dates)", "(C) 成績和時間表 (未提)", "(D) 家庭背景和個性 (正確)"] }
+        },
+        {
+            id: 74, section: "Part 4: Reading Comprehension (Matchmakers)", ans: 2,
+            q: "Where is this passage most likely to appear?",
+            options: ["In a comic book about wedding stories.", "In a science book about people's emotions.", "In a travel book about Taiwan's local culture.", "In a food magazine about traditional dishes."],
+            translation: "這篇文章最可能出現在哪裡？",
+            explain: { main: "文章詳細描述了台灣的傳統文化 (媒人制度)。", options: ["(A) 漫畫書 (文體不符)", "(B) 科學書 (內容不符)", "(C) 關於台灣在地文化的旅遊書 (正確)", "(D) 食物雜誌 (主題不符)"] }
+        },
+
+        // --- Part 4: Reading Comprehension (Passage 5: Monopoly) ---
+        {
+            id: 75, section: "Part 4: Reading Comprehension (Monopoly)", ans: 2,
+            passage: "Monopoly is a famous board game about buying and selling property. It was created in the US and has been popular for many years. The game's history goes back to 1903, when Elizabeth Magie invented a game called \"The Landlord's Game\" to teach people about economics*. In the 1930s, Charles Darrow changed the game and sold it as \"Monopoly.\" He later sold the rights to Parker Brothers, a toy company. The game became a big success during the Great Depression because people enjoyed pretending to be rich. Monopoly is played on a board that shows streets containing different properties. Players buy, sell, and trade properties to make money. They also pay rent when landing on other players' spaces. The goal is to become the richest player and make others go bankrupt. Over the years, Monopoly has introduced different versions*, including city-themed and movie-themed editions. It has also become available in many languages and is played by millions of people around the globe. Whether with family or friends, Monopoly is a fun and exciting game that brings people together.",
+            q: "What is the author's purpose of writing this article?",
+            options: ["To explain why Monopoly is not popular anymore.", "To share the rules of playing Monopoly in detail.", "To tell the story and growth of the Monopoly game.", "To compare Monopoly with other board games."],
+            translation: "作者寫這篇文章的目的是什麼？",
+            explain: { main: "文章從遊戲的歷史起源 (1903年) 到後來的演變 (Darrow, Parker Brothers, 不同版本) 進行了敘述。", options: ["(A) 解釋它為何不受歡迎 (錯誤，文章說它很受歡迎)", "(B) 詳細分享規則 (錯誤，只提到基本玩法)", "(C) 講述大富翁遊戲的故事和成長 (正確，涵蓋了文章大部分內容)", "(D) 與其他桌遊進行比較 (錯誤)"] }
+        },
+        {
+            id: 76, section: "Part 4: Reading Comprehension (Monopoly)", ans: 3,
+            q: "What does the word \"They\" in the third paragraph refer to?",
+            options: ["Cards.", "Properties.", "Boards.", "Players."],
+            translation: "第三段中的 'They' 指的是什麼？",
+            explain: { main: "第三段：'Players buy, sell, and trade properties to make money. They also pay rent...'。 'They' 指的是 'Players' (玩家)。", options: ["(A) 卡片", "(B) 房地產", "(C) 棋盤", "(D) 玩家 (正確)"] }
+        },
+        {
+            id: 77, section: "Part 4: Reading Comprehension (Monopoly)", ans: 0,
+            q: "Which of the following statements is NOT true?",
+            options: ["The Landlord's Game came after Monopoly.", "Monopoly became popular during hard times.", "Parker Brothers helped make Monopoly famous.", "Charles Darrow sold the game to a toy company."],
+            translation: "下列哪一項敘述是錯誤的？",
+            explain: { main: "Landlord's Game (1903) 早於 Monopoly (1930s)，因此說 Landlord's Game 在 Monopoly 之後出現是錯誤的。", options: ["(A) Landlord's Game 晚於 Monopoly (錯誤，應為早於)", "(B) 大富翁在經濟困難時期流行 (正確，Great Depression)", "(C) Parker Brothers 協助使它聞名 (正確，Darrow 賣給了他們)", "(D) Darrow 賣給了玩具公司 (正確)"] }
+        },
+        
+        // --- Part 4: Reading Comprehension (Passage 6: Mattel) ---
+        {
+            id: 78, section: "Part 4: Reading Comprehension (Mattel)", ans: 2,
+            passage: "Mattel is a famous toy company from the US. It was founded in 1945 by Harold Matson and Elliot Handler. The company's name comes from their names: \"Matt\" from Matson and \"El\" from Elliot. Mattel started by making picture frames, but it soon began creating toys. One of Mattel's most famous toys is Barbie, a fashion doll introduced in 1959. Barbie became very popular around the world. Her male friend Ken hit the market two years later. Mattel also created Hot Wheels, small toy cars, in 1968. Another famous toy from Mattel is Fisher-Price, which makes toys for babies and young children. Over the years, Mattel has made many well-known toys, including UNO cards, American Girl dolls, and Masters of the Universe action figures. They also make toys based on movies, such as figures of Disney and Pixar characters. Today, Mattel is one of the biggest toy companies in the world. Only Lego earns more money from toy sales than Mattel. Their headquarters is in California, the US. The company sells toys in many countries, bringing fun to children everywhere. Mattel continues to create new and exciting toys for kids of all ages. Whether it produces dolls, cars, games, or action figures, Mattel has something for everyone.",
+            q: "What is the main idea of this passage?",
+            options: ["Mattel became successful because it focused on making picture frames in the beginning.", "Mattel's best-selling toy is Barbie, which is widely loved by children around the world.", "Mattel is a famous toy company that has created many popular toys over the years.", "Mattel's headquarters is located in California, the US, where all toys are designed and made."],
+            translation: "這篇文章的主旨是什麼？",
+            explain: { main: "文章的內容涵蓋了 Mattel 的歷史、著名產品和當今的地位。", options: ["(A) 只提到了一開始做畫框 (太片面)", "(B) 只聚焦於 Barbie (太片面)", "(C) Mattel 是一家創造了許多受歡迎玩具的著名玩具公司 (正確，涵蓋了文章主旨)", "(D) 只聚焦於總部位置 (太片面)"] }
+        },
+        {
+            id: 79, section: "Part 4: Reading Comprehension (Mattel)", ans: 1,
+            q: "What is the writer's purpose of mentioning Barbie and Ken in the passage?",
+            options: ["To show how Mattel focuses only on fashion and beauty toys.", "To give examples of Mattel's earliest and most famous toys.", "To explain why Mattel became unpopular after the 1950s.", "To describe the personal lives of the Barbie and Ken characters."],
+            translation: "作者在文章中提及 Barbie 和 Ken 的目的是什麼？",
+            explain: { main: "Barbie 和 Ken 是 Mattel 早期且非常著名的玩具，作者用它們作為公司成功的代表性例子。", options: ["(A) 說它只專注於時尚玩具 (錯誤，還有 Hot Wheels 等)", "(B) 舉例說明 Mattel 最早和最著名的玩具 (正確)", "(C) 解釋為何 Mattel 不受歡迎 (錯誤)", "(D) 描述角色私生活 (錯誤)"] }
+        },
+        {
+            id: 80, section: "Part 4: Reading Comprehension (Mattel)", ans: 3,
+            q: "Which of the following can be inferred about the author's attitude toward Mattel?",
+            options: ["The author thinks Mattel is just an average toy company without much creativity.", "The author is mostly negative about Mattel's recent growth and overall success.", "The author believes Mattel's toys are not suitable for young children to play with.", "The author seems impressed by Mattel's long history and its wide range of products."],
+            translation: "關於作者對 Mattel 的態度，可以推斷出以下哪一項？",
+            explain: { main: "文章使用了 'famous'、'one of the biggest' 等詞彙，且強調了公司悠久的歷史和多樣化的產品線，顯示作者持肯定態度。", options: ["(A) 認為它只是一般公司 (錯誤)", "(B) 持負面態度 (錯誤)", "(C) 認為不適合幼兒 (錯誤，有提到 Fisher-Price)", "(D) 似乎對其悠久歷史和廣泛產品線印象深刻 (正確)"] }
+        }
+    ];
+
+    /* ========================================= */
+    /* === 2. 測驗功能邏輯 (Quiz Logic) === */
+    /* ========================================= */
+    const quizArea = document.getElementById('quiz-area');
+    const navContainer = document.getElementById('nav-container');
+    const scoreEl = document.getElementById('score');
+    let currentScore = 0;
+
+    function initQuiz() {
+        let currentSection = "";
+        
+        quizData.forEach((item, index) => {
+            // 導航
+            const navBtn = document.createElement('button');
+            navBtn.className = 'nav-btn';
+            navBtn.textContent = item.id;
+            // *** 修正: 呼叫 scrollToQuestion ***
+            navBtn.onclick = () => scrollToQuestion(item.id); 
+            navBtn.id = `nav-${item.id}`;
+            navContainer.appendChild(navBtn);
+
+            // 分區標題
+            if (item.section !== currentSection) {
+                const sectionHeader = document.createElement('div');
+                sectionHeader.className = 'section-header';
+                sectionHeader.textContent = item.section;
+                quizArea.appendChild(sectionHeader);
+                currentSection = item.section;
+            }
+
+            // 卡片
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            card.id = `q-${item.id}`; // 確保卡片有唯一的 ID
+
+            // 閱讀文章 (允許雙擊選字)
+            if (item.passage) {
+                const passageDiv = document.createElement('div');
+                passageDiv.className = 'passage-content';
+                passageDiv.innerHTML = `<strong>閱讀文章：</strong><br>${item.passage}`;
+                card.appendChild(passageDiv);
+            }
+
+            // 題目 (允許雙擊選字)
+            const questionText = document.createElement('div');
+            questionText.className = 'question-text';
+            questionText.innerHTML = `<span style="color:var(--secondary-color)">${item.id}.</span> ${item.q}`;
+            card.appendChild(questionText);
+
+            // 選項
+            const optionsGroup = document.createElement('div');
+            optionsGroup.className = 'options-group';
+            item.options.forEach((opt, optIndex) => {
+                const label = document.createElement('label');
+                label.className = 'option-label';
+                // 選項文字也允許選取加入單字
+                label.innerHTML = `<input type="radio" name="q-${item.id}" value="${optIndex}"> <span>(${String.fromCharCode(65 + optIndex)}) ${opt}</span>`;
+                
+                // 點擊選項作答
+                label.addEventListener('click', (e) => {
+                    if (label.querySelector('input').disabled) return;
+                    if (e.target.tagName === 'INPUT' || !window.getSelection().toString()) {
+                         checkAnswer(item, optIndex, card, optionsGroup);
+                    }
+                });
+                optionsGroup.appendChild(label);
+            });
+            card.appendChild(optionsGroup);
+
+            // 詳解
+            const explanationBox = document.createElement('div');
+            explanationBox.className = 'explanation-box';
+            explanationBox.id = `explain-${item.id}`;
+            
+            let optionsHtml = item.explain.options ? item.explain.options.map(o => `<li>${o}</li>`).join('') : '<li>無選項分析。</li>';
+
+            explanationBox.innerHTML = `
+                <div class="explanation-header"></div>
+                <div class="explanation-content">
+                    <div style="margin-bottom:10px; font-style:italic; color:#555;"><strong>翻譯：</strong>${item.translation}</div>
+                    <strong>解析：</strong>
+                    <p style="margin-top:5px">${item.explain.main}</p>
+                    <strong>選項分析：</strong>
+                    <ul style="padding-left:20px; margin:5px 0;">${optionsHtml}</ul>
+                </div>
+            `;
+            card.appendChild(explanationBox);
+            quizArea.appendChild(card);
+        });
+    }
+
+    // *** 修正: 題目導航的滾動功能 ***
+    function scrollToQuestion(id) {
+        const element = document.getElementById(`q-${id}`);
+        const mainContent = document.getElementById('main-content'); // 獲取正確的滾動容器
+        const offsetAdjustment = 80; // 黏性表頭的高度偏移量
+
+        if (element && mainContent) {
+            // 計算目標元素相對於滾動容器頂部的滾動距離
+            const targetScrollTop = element.offsetTop - offsetAdjustment; 
+            
+            // 使用容器的 scrollTo 方法進行滾動
+            mainContent.scrollTo({ 
+                top: targetScrollTop, 
+                behavior: "smooth" 
+            });
+        }
+    }
+
+    function checkAnswer(item, selectedIndex, card, optionsGroup) {
+        const inputs = optionsGroup.querySelectorAll('input');
+        const labels = optionsGroup.querySelectorAll('.option-label');
+        const explainBox = document.getElementById(`explain-${item.id}`);
+        const header = explainBox.querySelector('.explanation-header');
+        const navBtn = document.getElementById(`nav-${item.id}`);
+
+        // 鎖定所有選項
+        inputs.forEach(input => input.disabled = true);
+        labels.forEach(label => label.classList.add('disabled'));
+
+        const isCorrect = (selectedIndex === item.ans);
+
+        // 更新計分和顯示
+        if (isCorrect) {
+            labels[selectedIndex].classList.add('selected-correct');
+            header.textContent = "✅ 回答正確！";
+            header.className = "explanation-header correct";
+            if (!navBtn.classList.contains('correct') && !navBtn.classList.contains('wrong')) {
+                currentScore++;
+                scoreEl.textContent = currentScore;
+            }
+            navBtn.classList.add('correct');
+        } else {
+            labels[selectedIndex].classList.add('selected-wrong');
+            labels[item.ans].classList.add('selected-correct');
+            header.textContent = "❌ 回答錯誤";
+            header.className = "explanation-header wrong";
+            if (!navBtn.classList.contains('correct') && !navBtn.classList.contains('wrong')) {
+                navBtn.classList.add('wrong');
+            }
+        }
+        explainBox.style.display = "block";
+    }
+
+    /* ========================================= */
+    /* === 3. 生字筆記本功能邏輯 (Vocab Logic) === */
+    /* ========================================= */
+    let vocabList = JSON.parse(localStorage.getItem('myVocabList')) || [];
+    
+    const vocabFab = document.getElementById('vocab-fab');
+    const vocabPanel = document.getElementById('vocab-panel');
+    const closeVocabBtn = document.getElementById('close-vocab-btn');
+    const vocabListEl = document.getElementById('vocab-list');
+    const vocabBadge = document.getElementById('vocab-badge');
+    const toast = document.getElementById('toast');
+
+    // 開關面板
+    vocabFab.addEventListener('click', () => vocabPanel.classList.add('open'));
+    closeVocabBtn.addEventListener('click', () => vocabPanel.classList.remove('open'));
+
+    // 雙擊抓字監聽器 (綁定在主要內容區)
+    document.getElementById('main-content').addEventListener('dblclick', function(e) {
+        const selection = window.getSelection().toString().trim();
+        const wordRegex = /^[a-zA-Z\-'’]+$/; // 允許英文字母、撇號、連字號
+
+        if (selection && wordRegex.test(selection)) {
+            addWordToNotebook(selection);
+            showToast(`已加入: ${selection}`);
+        }
+    });
+
+    // 新增單字
+    function addWordToNotebook(word) {
+        const lowerWord = word.toLowerCase();
+        if (!vocabList.some(w => w.toLowerCase() === lowerWord)) {
+            vocabList.push(word);
+            vocabList.sort();
+            saveAndRender();
+        } else {
+            showToast(`"${word}" 已經在筆記本囉！`);
+        }
+    }
+
+    // 移除單字
+    function removeWord(word) {
+        vocabList = vocabList.filter(w => w !== word);
+        saveAndRender();
+    }
+
+    // 儲存並渲染
+    function saveAndRender() {
+        localStorage.setItem('myVocabList', JSON.stringify(vocabList));
+        renderVocabList();
+        updateBadge();
+    }
+
+    // 渲染列表 UI
+    function renderVocabList() {
+        if (vocabList.length === 0) {
+            vocabListEl.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">目前沒有生字<br>請在文中雙擊單字加入</div>';
+            return;
+        }
+
+        vocabListEl.innerHTML = '';
+        vocabList.forEach(word => {
+            const item = document.createElement('div');
+            item.className = 'vocab-item';
+            item.innerHTML = `
+                <span class="vocab-word">${word}</span>
+                <button class="delete-btn" title="刪除">&times;</button>
+            `;
+            item.querySelector('.delete-btn').addEventListener('click', () => removeWord(word));
+            vocabListEl.appendChild(item);
+        });
+    }
+
+    // 更新計數徽章
+    function updateBadge() {
+        vocabBadge.textContent = vocabList.length;
+        vocabBadge.style.display = vocabList.length > 0 ? 'flex' : 'none';
+    }
+
+    // 顯示提示訊息
+    function showToast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // 匯出功能
+    document.getElementById('export-btn').addEventListener('click', () => {
+        if (vocabList.length === 0) {
+            alert("筆記本是空的喔！");
+            return;
+        }
+        const textContent = "我的生字筆記本\n================\n" + vocabList.join('\n');
+        const blob = new Blob([textContent], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'my_vocabulary_list.txt';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+
+    // 清空功能
+    document.getElementById('clear-btn').addEventListener('click', () => {
+        if (confirm("確定要清空所有生字嗎？")) {
+            vocabList = [];
+            saveAndRender();
+        }
+    });
+
+    // 初始化執行
+    initQuiz();
+    renderVocabList();
+    updateBadge();
+
+</script>
+</body>
+</html>
